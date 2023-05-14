@@ -16,22 +16,23 @@ namespace ScriptSynth
         // quality of the audio
 
         //we'll start them with some default wav values
-        private readonly ulong _sampleRate = 44100;
+        private readonly ulong _samplesPerSecond = 44100;
         private readonly ulong _bitsPerSample = 16;
         private readonly ulong _bytesPerSample = 2;
 
-        public TonePlayer(ulong sampleRate, ulong bitsPerSample)
+        public TonePlayer(ulong samplesPerSecond, ulong bitsPerSample)
         {
-            this.sampleRate = sampleRate;
-            this.bitsPerSample = bitsPerSample;
+            _samplesPerSecond = samplesPerSecond;
+            _bitsPerSample = bitsPerSample;
+            _bytesPerSample = bitsPerSample / 8;
         }
 
         public void Play(List<ToneGenerator> toneGenerators)
         {
-            double[] audioBuffer = ToneCombiner.GenerateAudioBuffer(sampleRate, toneGenerators);
+            double[] audioBuffer = ToneCombiner.GenerateAudioBuffer(_samplesPerSecond, toneGenerators);
 
 
-            int audioDataSize = (int)((ulong)audioBuffer.Length * bitDepth / 8);
+            int audioDataSize = (int)((ulong)audioBuffer.Length * _bytesPerSample);
 
             // Convert the audio buffer to a byte array
             byte[] audioBytes = new byte[audioDataSize];
@@ -39,14 +40,18 @@ namespace ScriptSynth
             {
                 short sample = (short)(audioBuffer[i] * 32767.0);
                 byte[] sampleBytes = BitConverter.GetBytes(sample);
-                Array.Copy(sampleBytes, 0, audioBytes, (int)(i * bitDepth / 8), (int)(bitDepth / 8));
+                Array.Copy(sampleBytes, 0, audioBytes, (int)(i * _bytesPerSample), (int)_bytesPerSample);
             }
 
             // Play the audio using a SoundPlayer
             using (MemoryStream audioStream = new MemoryStream(audioDataSize + 44))
             {
+                bool littleEndian = BitConverter.IsLittleEndian;
+
+                if (!littleEndian) throw new Exception("uh oh, big endian");
+
                 //write the wav header tp the memory stream
-                audioStream.Position= 0;
+                audioStream.Position = 0;
                 audioStream.Write(Encoding.ASCII.GetBytes("RIFF"), 0, 4);
 
                 //bytes 5-8 are the file size
@@ -63,6 +68,8 @@ namespace ScriptSynth
 
 
                 int totalDataSize = audioDataSize + 44 - 8; //we count starting from 8
+
+                int channels = 1; //mono
                 
                 //convert int to byte array
 
@@ -82,26 +89,24 @@ namespace ScriptSynth
 
                 //now we need to write the audio format to the stream
                 //which is 1 for PCM
-                //todo: validate that this is the correct endianness
                 audioStream.Write(new byte[] { 0x01, 0x00 }, 0, 2);
 
                 //now we need to write the number of channels to the stream
                 //which is 1 for mono
-                //todo: validate that this is the correct endianness
-                audioStream.Write(new byte[] { 0x01, 0x00 }, 0, 2);
+                audioStream.Write(new byte[] { (byte)channels, 0x00 }, 0, 2);
 
                 //now we need to write the sample rate to the stream
-                audioStream.Write(BitConverter.GetBytes(sampleRate), 0, 4);
+                audioStream.Write(BitConverter.GetBytes((int)_samplesPerSecond), 0, 4);
 
                 //now we need to write the byte rate to the stream
                 //which is the sample rate * the number of channels * the number of bytes per sample
-                audioStream.Write(BitConverter.GetBytes(sampleRate * bitDepth / 8), 0, 4);
-                //normally we would also multiply by the number of channels, but we only have one channel
+                audioStream.Write(BitConverter.GetBytes((int)_samplesPerSecond * channels * (int)_bytesPerSample), 0, 4);
 
+                //now we need to write the number of bytes per sample
+                audioStream.Write(BitConverter.GetBytes((short)((int)_bytesPerSample * channels)), 0, 2);
 
                 //now we need to write the number of bits per sample
-                //since we only have one channel, this is the same as the number of bytes per sample
-                audioStream.Write(BitConverter.GetBytes(bitDepth / 8), 0, 2);
+                audioStream.Write(BitConverter.GetBytes((short)_bitsPerSample), 0, 2);
 
                 //now we need to write the word data to the stream
                 audioStream.Write(Encoding.ASCII.GetBytes("data"), 0, 4);
@@ -109,10 +114,13 @@ namespace ScriptSynth
                 //now we need to write the size of the audio data to the stream
                 audioStream.Write(BitConverter.GetBytes(audioDataSize), 0, 4);
 
+               
+
                 //now we need to write the audio data to the stream
                 audioStream.Write(audioBytes, 0, audioDataSize);
 
-                TestAudioStream(audioStream);
+
+                //TestAudioStream(audioStream);
 
                 audioStream.Position = 0;
 
@@ -122,7 +130,6 @@ namespace ScriptSynth
                     //soundPlayer.Stop();
                 }
 
-                MessageBox.Show("Done playing");
             }
         }
 
@@ -136,7 +143,7 @@ namespace ScriptSynth
             audioStream.Read(data, 0, length);
 
             //write the bytes to a wav file
-            File.WriteAllBytes("test.wav", data);
+            //File.WriteAllBytes("test.wav", data);
 
             int num = 0;
             short num2 = -1;

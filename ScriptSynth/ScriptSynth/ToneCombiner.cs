@@ -8,7 +8,6 @@ namespace ScriptSynth
 {
     public class ToneCombiner
     {
-        //private static readonly double tau = 2 * Math.PI;
 
         public static double[] GenerateAudioBuffer(ulong sampleRate, List<ToneGenerator> toneGenerators)
         {
@@ -29,16 +28,12 @@ namespace ScriptSynth
 
             foreach (ToneGenerator toneGenerator in toneGenerators)
             {
-                //ulong startSample = sampleRate * toneGenerator.StartTime / 1000L;
-                //ulong stopSample = sampleRate * toneGenerator.StopTime / 1000L;
-
+  
                 ulong startSample = toneGenerator.StartIndex;
                 ulong stopSample = toneGenerator.EndIndex;
 
                 for (ulong i = startSample; i < stopSample; i++)
                 {
-                    //ulong timeInMs = (i- startSample) / sampleRate;
-                    //double timeInSeconds = i / (double)sampleRate;
                     double sample = toneGenerator.Generate(startSample, i, stopSample, sampleRate);
                     buffer[i] += sample;
                 }

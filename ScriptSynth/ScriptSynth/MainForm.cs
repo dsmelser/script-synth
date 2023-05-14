@@ -19,39 +19,56 @@ namespace ScriptSynth
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            //tonesDataGridView.Columns.Add(new DataGridViewTimeColumn());
-            //tonesDataGridView.Columns.Add(new DataGridViewTimeColumn());
-            //tonesDataGridView.Columns.Add("script", "Script");
 
-            MessageBox.Show("Press OK to play tone");
+        }
 
-
-            //var func = ToneGeneratorParser.ParseToneFunction("start * duration * index");
-
-            //double result = func(2, 3, 5);
-
-            //MessageBox.Show("result is : " + result);
-
+        private void Tone440Button_Click(object sender, EventArgs e)
+        {
             ulong samplesPerSec = 44100;
 
-            
-            ToneFunction pureTone440 = 
-                (start, current, end, rate) => 
-                    Math.Sin(440 * 2.0 * Math.PI * (current - start) / rate);
+            //ToneFunction pureTone440 =
+            //    (start, current, end, rate) =>
+            //    {
+            //        double sample = Math.Sin(220 * 2.0 * Math.PI * (current - start) / rate);
+            //        return sample;
+            //    };
 
-            ToneGenerator oneSecondOfPure440 = new ToneGenerator(0, 1 * samplesPerSec, pureTone440 );
+            ToneFunction pureTone440 =
+                (start, current, end, rate) =>
+                {
+                    //(current - start)/rate is essentially just how many seconds have passed
+                    double cycles = 2.0 * Math.PI * (current - start) / rate;
+                    double sample = Math.Sin(220.0 * cycles);
+                    sample += Math.Sin(220.0 * 3.0 / 2.0 * cycles);
+                    sample += Math.Sin(220.0 * 5.0 / 4.0 * cycles);
+                    sample += Math.Sin(220.0 * 7.0 / 4.0 * cycles);
+                    sample += Math.Sin(220.0 * 9.0 / 8.0 * cycles);
+                    sample += Math.Sin(220.0 * 11.0 / 8.0 * cycles);
+                    sample += Math.Sin(220.0 * 13.0 / 8.0 * cycles);
+                    sample += Math.Sin(220.0 * 15.0 / 8.0 * cycles);
 
-            
+
+                    //sample += Math.Sin(440.0 * dist);
+
+                    sample /= 8.0;
+
+                    return sample;
+                };
+
+            ulong startSample = 0;
+            ulong endSample = samplesPerSec;
+
+            ToneGenerator oneSecondOfPure440 = new ToneGenerator(startSample, endSample, pureTone440);
+
+
             List<ToneGenerator> generators = new List<ToneGenerator>();
             generators.Add(oneSecondOfPure440);
 
-            
+
             TonePlayer player = new TonePlayer(samplesPerSec, 16);
 
             player.Play(generators);
 
         }
-
-
     }
 }
